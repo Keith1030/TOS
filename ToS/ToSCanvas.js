@@ -1,6 +1,6 @@
 class TosCanvas {
     constructor(canvas, imgs, layout) {
-        // this.canvas = canvas;
+        this.canvas = canvas;
         this.ctx = canvas.getContext('2d');
         this.imgs = imgs;
         this.layout = layout;
@@ -9,6 +9,7 @@ class TosCanvas {
         this.dy = canvas.height / 5;
 
         canvas.addEventListener('mousedown', (e) => this.mousedownEvent(e));
+        canvas.addEventListener('mousemove', (e) => this.mousemoveEvent(e));
         canvas.addEventListener('mouseup', (e) => this.mouseupEvent(e));
 
         this.drawBackground();
@@ -45,6 +46,16 @@ class TosCanvas {
             }
         }
     }
+    
+    //畫被抓住的符石
+    drawDragedStone(){
+        this.drawBackground();
+        this.drawStones();
+        this.ctx.save();
+        this.ctx.globalAlpha=0.5;
+        this.ctx.drawImage(this.imgs[this.dragingType], this.dragingX * this.dx, this.dragingY * this.dy, this.dx, this.dy);
+        this.ctx.restore();
+    }
 
     //點下事件
     mousedownEvent(e) {
@@ -54,12 +65,22 @@ class TosCanvas {
         // };
         this.dragingX = parseInt(e.offsetX / this.dx);
         this.dragingY = parseInt(e.offsetY / this.dy);
+        this.dragingType = this.layout[this.dragingY][this.dragingX];
         this.draged = true;
+    }
+    //拖曳事件
+    mousemoveEvent(e){
+        //沒有點下事件 就略過
+        if (!this.draged) {
+            return;
+        }
+        this.drawDragedStone();
+        console.log('moved');
     }
 
     //放開事件
     mouseupEvent(e) {
-        //只有放開事件 沒有點下事件
+        //沒有點下事件 就略過
         if (!this.draged) {
             return;
         }
@@ -78,7 +99,11 @@ class TosCanvas {
         this.draged = false;
     }
 
-    //
+    //判斷是否經過小格子的角落(斜轉)
+    isCornerPassed(){
+        // to do
+        return false;
+    }
 
     //交換符石
     swapStones(from, to) {

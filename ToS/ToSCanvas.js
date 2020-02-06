@@ -4,7 +4,7 @@ class TosCanvas {
         this.ctx = canvas.getContext('2d');
         this.imgs = imgs;
         this.layout = layout;
-        //格子間距離
+        //格子間的距離
         this.dx = canvas.width / 6;
         this.dy = canvas.height / 5;
 
@@ -13,12 +13,11 @@ class TosCanvas {
         canvas.addEventListener('mouseup', (e) => this.mouseupEvent(e));
 
         this.drawBackground();
-        this.drawStones();
+        this.drawLayout();
     }
 
     //畫背景
     drawBackground() {
-        // console.log('畫背景');
         for (var i = 0; i < 6; i++) {
             for (var j = 0; j < 5; j++) {
                 //偶數格的背景
@@ -33,9 +32,8 @@ class TosCanvas {
         }
     }
 
-    //畫符石
-    drawStones() {
-        // console.log('畫符石');
+    //畫版面
+    drawLayout() {
         for (var i = 0; i < this.layout.length; i++) {
             for (var j = 0; j < this.layout[i].length; j++) {
                 var stoneType = this.layout[i][j];
@@ -48,12 +46,16 @@ class TosCanvas {
     }
     
     //畫被抓住的符石
-    drawDragedStone(){
+    drawDragingStone(){
+        //抓空的(-1)跳過
+        if(this.dragedType == -1){
+            return;
+        }
         this.drawBackground();
-        this.drawStones();
+        this.drawLayout();
         this.ctx.save();
         this.ctx.globalAlpha=0.5;
-        this.ctx.drawImage(this.imgs[this.dragingType], this.dragingX * this.dx, this.dragingY * this.dy, this.dx, this.dy);
+        this.ctx.drawImage(this.imgs[this.dragedType], this.dragingX, this.dragingY, this.dx, this.dy);
         this.ctx.restore();
     }
 
@@ -63,25 +65,33 @@ class TosCanvas {
         //     x: parseInt(e.offsetX / this.dx),
         //     y: parseInt(e.offsetY / this.dy)
         // };
-        this.dragingX = parseInt(e.offsetX / this.dx);
-        this.dragingY = parseInt(e.offsetY / this.dy);
-        this.dragingType = this.layout[this.dragingY][this.dragingX];
-        this.draged = true;
+        var x = parseInt(e.offsetX / this.dx);
+        var y = parseInt(e.offsetY / this.dy);
+        //紀錄以符石為基準 點的座標和符石左上角的差
+        this.dragedDx = e.offsetX % this.dx;
+        this.dragedDy = e.offsetY % this.dy;
+
+        this.dragedType = this.layout[y][x];
+        this.layout[y][x] = -1;
+        this.isDraged = true;
     }
     //拖曳事件
     mousemoveEvent(e){
         //沒有點下事件 就略過
-        if (!this.draged) {
+        if (!this.isDraged) {
             return;
         }
-        this.drawDragedStone();
-        console.log('moved');
+        this.dragingX = e.offsetX - this.dragedDx;
+        this.dragingY = e.offsetY - this.dragedDy;
+
+        this.drawDragingStone();
+        // console.log('moved');
     }
 
     //放開事件
     mouseupEvent(e) {
         //沒有點下事件 就略過
-        if (!this.draged) {
+        if (!this.isDraged) {
             return;
         }
         // var pos = {
@@ -90,13 +100,13 @@ class TosCanvas {
         // };
         var x = parseInt(e.offsetX / this.dx);
         var y = parseInt(e.offsetY / this.dy);
-        // console.log(`mouseup at ${x},${y}`);
 
-        this.swapStones({ x: this.dragingX, y: this.dragingY }, { x: x, y: y })
+        // this.swapStones({ x: this.dragingX, y: this.dragingY }, { x: x, y: y })
+        this.layout[y][x] = this.dragedType;
 
         this.drawBackground();
-        this.drawStones();
-        this.draged = false;
+        this.drawLayout();
+        this.isDraged = false;
     }
 
     //判斷是否經過小格子的角落(斜轉)

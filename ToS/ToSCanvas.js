@@ -1,32 +1,39 @@
-class TosCanvas {
+class TOSCanvas {
     constructor(canvas, imgs, layout) {
         this.canvas = canvas;
         this.ctx = canvas.getContext('2d');
         this.imgs = imgs;
         this.layout = layout;
-        //格子間的距離
-        this.dx = canvas.width / 6;
-        this.dy = canvas.height / 5;
+        //格子的寬高
+        this.gridWidth = canvas.width / 6;
+        this.gridHeight = canvas.height / 5;
 
+        //綁定事件
         canvas.addEventListener('mousedown', (e) => this.mousedownEvent(e));
         canvas.addEventListener('mousemove', (e) => this.mousemoveEvent(e));
         canvas.addEventListener('mouseup', (e) => this.mouseupEvent(e));
 
-        this.drawBackground();
-        this.drawLayout();
+        this.refresh();
     }
 
-    //畫背景
-    drawBackground() {
+    //刷新畫面
+    refresh() {
+        this.drawGrids();
+        this.drawLayout();
+        this.drawDragingStone();
+    }
+
+    //畫格子
+    drawGrids() {
         for (var i = 0; i < 6; i++) {
             for (var j = 0; j < 5; j++) {
-                //偶數格的背景
+                //偶數格的格子
                 if ((i + j) % 2) {
-                    this.ctx.drawImage(this.imgs[7], i * this.dx, j * this.dy, this.dx, this.dy);
+                    this.ctx.drawImage(this.imgs[7], i * this.gridWidth, j * this.gridHeight, this.gridWidth, this.gridHeight);
                 }
-                //偶數格的背景
+                //偶數格的格子
                 else {
-                    this.ctx.drawImage(this.imgs[6], i * this.dx, j * this.dy, this.dx, this.dy);
+                    this.ctx.drawImage(this.imgs[6], i * this.gridWidth, j * this.gridHeight, this.gridWidth, this.gridHeight);
                 }
             }
         }
@@ -40,77 +47,95 @@ class TosCanvas {
                 if (!this.imgs[stoneType]) {
                     continue;
                 }
-                this.ctx.drawImage(this.imgs[stoneType], j * this.dx, i * this.dy, this.dx, this.dy);
+                this.ctx.drawImage(this.imgs[stoneType], j * this.gridWidth, i * this.gridHeight, this.gridWidth, this.gridHeight);
             }
         }
     }
-    
+
     //畫被抓住的符石
-    drawDragingStone(){
-        //抓空的(-1)跳過
-        if(this.dragedType == -1){
+    drawDragingStone() {
+        //抓到空的
+        if (!this.draging) {
             return;
         }
-        this.drawBackground();
-        this.drawLayout();
         this.ctx.save();
-        this.ctx.globalAlpha=0.5;
-        this.ctx.drawImage(this.imgs[this.dragedType], this.dragingX, this.dragingY, this.dx, this.dy);
+        this.ctx.globalAlpha = 0.5;
+        this.ctx.drawImage(
+            this.imgs[this.draging.imgIndex],
+            ...this.draging.drawXY,
+            this.gridWidth,
+            this.gridHeight
+        );
         this.ctx.restore();
     }
 
     //點下事件
     mousedownEvent(e) {
-        // var pos = {
-        //     x: parseInt(e.offsetX / this.dx),
-        //     y: parseInt(e.offsetY / this.dy)
-        // };
-        var x = parseInt(e.offsetX / this.dx);
-        var y = parseInt(e.offsetY / this.dy);
-        //紀錄以符石為基準 點的座標和符石左上角的差
-        this.dragedDx = e.offsetX % this.dx;
-        this.dragedDy = e.offsetY % this.dy;
-
-        this.dragedType = this.layout[y][x];
-        this.layout[y][x] = -1;
-        this.isDraged = true;
-    }
-    //拖曳事件
-    mousemoveEvent(e){
-        //沒有點下事件 就略過
-        if (!this.isDraged) {
+        var [x, y] = [e.offsetX, e.offsetY];
+        var [posX, posY] = this.XYToPosXY([x, y]);
+        var dragedType = this.layout[posY][posX];
+        //抓到空的就略過
+        if (dragedType == -1) {
             return;
         }
-        this.dragingX = e.offsetX - this.dragedDx;
-        this.dragingY = e.offsetY - this.dragedDy;
 
-        this.drawDragingStone();
-        // console.log('moved');
+        var dX = x % this.gridWidth;
+        var dY = y % this.gridHeight;
+        this.draging = new Draging(
+            dragedType,
+            [x, y],
+            [x, y],
+            [dX, dY]
+        )
+        this.layout[posY][posX] = -1;
+        this.refresh();
+    }
+    //拖曳事件
+    mousemoveEvent(e) {
+        //沒有點下事件 就略過
+        if (!this.draging) {
+            return;
+        }
+        var [x, y] = [e.offsetX, e.offsetY];
+        var [posX, posY] = this.XYToPosXY([x, y]);
+        if(false){
+            
+            // //新的中心座標
+            // var [newPosX, newPosY] = this.XYToPosXY(
+            //     newX, 
+            //     newY
+            // );
+            // //舊的中心座標
+            // var [currentPosX, currentPosY] = this.XYToPosXY(
+            //     this.draging.currentPosX,
+            //     this.draging.currentPosY
+            // )
+            // //中心座標改變時
+            // if (!(newPosX == currentPosX && newPosY == currentPosY)) {
+            //     //swap
+            //     console.log(currentPosX, newPosX, currentPosY, newPosY);
+            // }
+        }
+        this.draging.currentXY = [x,y];
+
+        this.refresh();
     }
 
     //放開事件
     mouseupEvent(e) {
         //沒有點下事件 就略過
-        if (!this.isDraged) {
+        if (!this.draging) {
             return;
         }
-        // var pos = {
-        //     x: parseInt(e.offsetX / this.dx),
-        //     y: parseInt(e.offsetY / this.dy)
-        // };
-        var x = parseInt(e.offsetX / this.dx);
-        var y = parseInt(e.offsetY / this.dy);
+        var [x, y] = this.XYToPosXY([e.offsetX, e.offsetY]);
+        this.layout[y][x] = this.draging.imgIndex;
 
-        // this.swapStones({ x: this.dragingX, y: this.dragingY }, { x: x, y: y })
-        this.layout[y][x] = this.dragedType;
-
-        this.drawBackground();
-        this.drawLayout();
-        this.isDraged = false;
+        this.draging = null;
+        this.refresh();
     }
 
     //判斷是否經過小格子的角落(斜轉)
-    isCornerPassed(){
+    isCornerPassed() {
         // to do
         return false;
     }
@@ -123,5 +148,31 @@ class TosCanvas {
 
         [this.layout[from.y][from.x], this.layout[to.y][to.x]] = [this.layout[to.y][to.x], this.layout[from.y][from.x]];
         // console.table(this.layout);
+    }
+
+    //座標轉整數
+    XYToPosXY([x, y]) {
+        return [
+            parseInt(x / this.gridWidth),
+            parseInt(y / this.gridHeight)
+        ];
+    }
+}
+
+class Draging {
+    //(樣式,開始XY,現在XY,修正X,修正Y)
+    constructor(imgIndex, [startX, startY], currentXY, dXY) {
+        this.imgIndex = imgIndex;
+        // this.startX = startX;
+        // this.startY = startY;
+        this.currentXY = currentXY;
+        //紀錄以符石為基準 點的座標和符石左上角的差
+        this.dXY = dXY;
+    }
+    get drawXY(){
+        return [
+            this.currentXY[0] - this.dXY[0],
+            this.currentXY[1] - this.dXY[1]
+        ]
     }
 }

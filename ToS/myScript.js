@@ -28,7 +28,7 @@ $(function () {
         console.log('canvas is not supported');
     };
     loadImages(urls, (imgs)=>{
-        var tosCanvas = new TosCanvas(canvas, imgs, layout);
+        var tosCanvas = new TOSCanvas(canvas, imgs, layout);
     });
 });
 

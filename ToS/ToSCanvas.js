@@ -19,12 +19,21 @@ class TOSCanvas {
     //刷新畫面
     refresh() {
         this.drawGrids();
+        //測試斜轉有效區域
+        for (var i = 0; i < 60; i++) {
+            for (var j = 240; j < 300; j++) {
+                if (myOblique([i/60*100,j%60/60*100],33)) {
+                    this.ctx.fillRect(i, j, 1, 1);
+                }
+            }
+        }
         this.drawLayout();
         this.drawDragingStone();
     }
 
     //畫格子
     drawGrids() {
+        this.ctx.save();
         for (var i = 0; i < 6; i++) {
             for (var j = 0; j < 5; j++) {
                 //偶數格的格子
@@ -37,10 +46,12 @@ class TOSCanvas {
                 }
             }
         }
+        this.ctx.restore();
     }
 
     //畫版面
     drawLayout() {
+        this.ctx.save();
         for (var i = 0; i < this.layout.length; i++) {
             for (var j = 0; j < this.layout[i].length; j++) {
                 var stoneType = this.layout[i][j];
@@ -50,6 +61,7 @@ class TOSCanvas {
                 this.ctx.drawImage(this.imgs[stoneType], j * this.gridWidth, i * this.gridHeight, this.gridWidth, this.gridHeight);
             }
         }
+        this.ctx.restore();
     }
 
     //畫被抓住的符石
@@ -59,10 +71,10 @@ class TOSCanvas {
             return;
         }
         this.ctx.save();
-        this.ctx.globalAlpha = 0.5;
+        this.ctx.globalAlpha = 0.7;
         this.ctx.drawImage(
             this.imgs[this.draging.imgIndex],
-            ...this.draging.drawXY,
+            ...this.draging.currentXY,
             this.gridWidth,
             this.gridHeight
         );
@@ -81,11 +93,12 @@ class TOSCanvas {
 
         var dX = x % this.gridWidth;
         var dY = y % this.gridHeight;
-        this.draging = new Draging(
+        this.draging = new DragingData(
             dragedType,
+            [posX, posY],
             [x, y],
-            [x, y],
-            [dX, dY]
+            [dX, dY],
+            [this.gridWidth, this.gridHeight],
         )
         this.layout[posY][posX] = -1;
         this.refresh();
@@ -97,26 +110,20 @@ class TOSCanvas {
             return;
         }
         var [x, y] = [e.offsetX, e.offsetY];
-        var [posX, posY] = this.XYToPosXY([x, y]);
-        if(false){
-            
-            // //新的中心座標
-            // var [newPosX, newPosY] = this.XYToPosXY(
-            //     newX, 
-            //     newY
-            // );
-            // //舊的中心座標
-            // var [currentPosX, currentPosY] = this.XYToPosXY(
-            //     this.draging.currentPosX,
-            //     this.draging.currentPosY
-            // )
-            // //中心座標改變時
-            // if (!(newPosX == currentPosX && newPosY == currentPosY)) {
+
+        //舊的中心座標
+        var lastPosXY = this.XYToPosXY(this.draging.centerXY);
+        this.draging.dragingXY = [x, y];
+        //新的中心座標
+        var newPosXY = this.XYToPosXY(this.draging.centerXY);
+        //中心座標改變時
+        if (!(newPosXY == '' + lastPosXY)) {
+            //判斷是否合法的交換
+            // if(this.isLegalSwap(this.draging.relativelyXY)){
             //     //swap
-            //     console.log(currentPosX, newPosX, currentPosY, newPosY);
+            //     this.swapStones(newPosXY, lastPosXY);
             // }
         }
-        this.draging.currentXY = [x,y];
 
         this.refresh();
     }
@@ -127,31 +134,33 @@ class TOSCanvas {
         if (!this.draging) {
             return;
         }
-        var [x, y] = this.XYToPosXY([e.offsetX, e.offsetY]);
+        var [x, y] = this.XYToPosXY(this.draging.centerXY);
         this.layout[y][x] = this.draging.imgIndex;
 
         this.draging = null;
         this.refresh();
     }
 
-    //判斷是否經過小格子的角落(斜轉)
-    isCornerPassed() {
-        // to do
-        return false;
+    //判斷是否合法的交換 (斜轉不合法, 所以不用交換)
+    isLegalSwap([x, y]) {
+        if (false) {
+            return true;
+        } else {
+
+            return true;
+        }
     }
 
     //交換符石
-    swapStones(from, to) {
-        // var tmp = this.layout[from.y][from.x];
-        // this.layout[from.y][from.x] = this.layout[to.y][to.x];
-        // this.layout[to.y][to.x] = tmp;
-
-        [this.layout[from.y][from.x], this.layout[to.y][to.x]] = [this.layout[to.y][to.x], this.layout[from.y][from.x]];
-        // console.table(this.layout);
+    swapStones(a, b) {
+        [this.layout[a[1]][a[0]], this.layout[b[1]][b[0]]] = [this.layout[b[1]][b[0]], this.layout[a[1]][a[0]]];
     }
 
     //座標轉整數
     XYToPosXY([x, y]) {
+        //檢查上下限
+        x = Math.max(Math.min(x, this.canvas.width - 1), 0);
+        y = Math.max(Math.min(y, this.canvas.height - 1), 0);
         return [
             parseInt(x / this.gridWidth),
             parseInt(y / this.gridHeight)
@@ -159,20 +168,48 @@ class TOSCanvas {
     }
 }
 
-class Draging {
-    //(樣式,開始XY,現在XY,修正X,修正Y)
-    constructor(imgIndex, [startX, startY], currentXY, dXY) {
+class DragingData {
+    //(樣式,現在拖曳的XY,修正XY,格子大小)
+    constructor(imgIndex, lastPosXY, dragingXY, dXY, gridSize) {
         this.imgIndex = imgIndex;
-        // this.startX = startX;
-        // this.startY = startY;
-        this.currentXY = currentXY;
-        //紀錄以符石為基準 點的座標和符石左上角的差
+        this.dragingXY = dragingXY;
+        this.lastPosXY = lastPosXY;
+        //紀錄以符石為基準 dragingXY的座標和符石左上角的差
         this.dXY = dXY;
+        this.gridSize = gridSize;
     }
-    get drawXY(){
+    //符石的左上角座標
+    get currentXY() {
         return [
-            this.currentXY[0] - this.dXY[0],
-            this.currentXY[1] - this.dXY[1]
-        ]
+            this.dragingXY[0] - this.dXY[0],
+            this.dragingXY[1] - this.dXY[1]
+        ];
     }
+    //符石的中心座標
+    get centerXY() {
+        return [
+            this.currentXY[0] + this.gridSize[0] / 2,
+            this.currentXY[1] + this.gridSize[1] / 2,
+        ];
+    }
+    //在符石內的座標
+    get relativelyXY() {
+        return [
+            this.centerXY[0] % this.gridSize[0],
+            this.centerXY[1] % this.gridSize[1],
+        ];
+    }
+}
+// 33
+var myOblique = ([x, y], sensitive) => {
+    if (x + y < sensitive) {//左上
+        return false;
+    } else if (x + y > 200 - sensitive) {//右下
+        return false;
+    } else if (x - y > 100 - sensitive) {//右上
+        return false;
+    } else if (y - x > 100 - sensitive) {//左下
+        return false;
+    }
+    return true;
 }

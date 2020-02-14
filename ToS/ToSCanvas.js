@@ -1,34 +1,42 @@
 class TOSCanvas {
-    constructor(canvas, imgs, layout) {
+    constructor(canvas, imgs, originalLayout) {
         this.canvas = canvas;
         this.ctx = canvas.getContext('2d');
         this.imgs = imgs;
-        this.layout = layout;
+        this.originalLayout = originalLayout;
+        
         //格子的寬高
         this.gridWidth = canvas.width / 6;
         this.gridHeight = canvas.height / 5;
-
+        //開發模式
+        this.debugMode = false;
+        
         //綁定事件
         canvas.addEventListener('mousedown', (e) => this.mousedownEvent(e));
         canvas.addEventListener('mousemove', (e) => this.mousemoveEvent(e));
         canvas.addEventListener('mouseup', (e) => this.mouseupEvent(e));
-
-        this.refresh();
+        
+        this.resetLayout();
     }
 
     //刷新畫面
     refresh() {
         this.drawGrids();
-        //測試斜轉有效區域
-        for (var i = 0; i < 60; i++) {
-            for (var j = 240; j < 300; j++) {
-                if (myOblique([i/60*100,j%60/60*100],33)) {
-                    this.ctx.fillRect(i, j, 1, 1);
-                }
-            }
-        }
         this.drawLayout();
         this.drawDragingStone();
+        if (this.debugMode) {
+            //測試斜轉有效區域
+            this.ctx.save();
+            this.ctx.globalAlpha = 0.4;
+            for (var i = 0; i < 60; i++) {
+                for (var j = 240; j < 300; j++) {
+                    if (myOblique([i / 60 * 100, j % 60 / 60 * 100], 33)) {
+                        this.ctx.fillRect(i, j, 1, 1);
+                    }
+                }
+            }
+            this.ctx.restore();
+        }
     }
 
     //畫格子
@@ -59,6 +67,10 @@ class TOSCanvas {
                     continue;
                 }
                 this.ctx.drawImage(this.imgs[stoneType], j * this.gridWidth, i * this.gridHeight, this.gridWidth, this.gridHeight);
+                if (this.debugMode) {
+                    this.ctx.fillStyle = 'white';
+                    this.ctx.fillRect((j + 0.5) * this.gridWidth, (i + 0.5) * this.gridHeight, 5, 5);
+                }
             }
         }
         this.ctx.restore();
@@ -78,6 +90,10 @@ class TOSCanvas {
             this.gridWidth,
             this.gridHeight
         );
+        if (this.debugMode) {
+            this.ctx.fillStyle = 'white';
+            this.ctx.fillRect(this.draging.currentXY[0] + 0.5 * this.gridWidth, this.draging.currentXY[1] + 0.5 * this.gridHeight, 5, 5);
+        }
         this.ctx.restore();
     }
 
@@ -113,16 +129,28 @@ class TOSCanvas {
 
         //舊的中心座標
         var lastPosXY = this.XYToPosXY(this.draging.centerXY);
+        //更新中心座標
         this.draging.dragingXY = [x, y];
         //新的中心座標
         var newPosXY = this.XYToPosXY(this.draging.centerXY);
         //中心座標改變時
         if (!(newPosXY == '' + lastPosXY)) {
+            this.dragingCenterChanged = true;
+        }
+        if (this.dragingCenterChanged) {
             //判斷是否合法的交換
-            // if(this.isLegalSwap(this.draging.relativelyXY)){
-            //     //swap
-            //     this.swapStones(newPosXY, lastPosXY);
-            // }
+            if (myOblique([
+                this.draging.relativelyXY[0] / this.gridWidth * 100,
+                this.draging.relativelyXY[1] / this.gridHeight * 100],
+                33
+            )) {
+                //swap
+
+                this.swapStones(newPosXY, this.draging.lastPosXY);
+                this.draging.lastPosXY = newPosXY;
+                // console.log(this.draging.lastPosXY);
+                this.dragingCenterChanged = false;
+            }
         }
 
         this.refresh();
@@ -134,21 +162,11 @@ class TOSCanvas {
         if (!this.draging) {
             return;
         }
-        var [x, y] = this.XYToPosXY(this.draging.centerXY);
+        var [x, y] = this.draging.lastPosXY;
         this.layout[y][x] = this.draging.imgIndex;
 
         this.draging = null;
         this.refresh();
-    }
-
-    //判斷是否合法的交換 (斜轉不合法, 所以不用交換)
-    isLegalSwap([x, y]) {
-        if (false) {
-            return true;
-        } else {
-
-            return true;
-        }
     }
 
     //交換符石
@@ -165,6 +183,64 @@ class TOSCanvas {
             parseInt(x / this.gridWidth),
             parseInt(y / this.gridHeight)
         ];
+    }
+
+    //消珠
+    foo() {
+        this.result = [];
+        var lay = this.layout;
+        var eliminateArray = [];
+        //2維陣列 且值為 false
+        var used = [...Array(5)].map(() => Array(6).fill(false));
+        var r = this.findSame(lay, used, 1, 1);
+        console.log(r);
+        for (var i = 0; i < r.length; i++) {
+            var x = r[i][0];
+            var y = r[i][1];
+            this.layout[y][x] = 5;
+        }
+        this.refresh();
+    }
+    //尋找同色
+    findSame(lay, used, x, y) {
+        var arr1 = [];
+        var arr2 = [];
+        var arr3 = [];
+        var arr4 = [];
+        if (used[x][y]) {
+            return [y,x];
+        }
+        //向下相同的
+        if (x + 1 < lay.length && lay[x][y] == lay[x + 1][y]) {
+            used[y][x] = true;
+            arr1 = this.findSame(lay, used, x + 1, y).concat([[y, x]]);
+        }
+        //向右相同的
+        if (y + 1 < lay[0].length && lay[x][y] == lay[x][y + 1]) {
+            used[y][x] = true;
+            arr2 = this.findSame(lay, used, x, y + 1).concat([[y, x]]);
+        }
+        //向上相同的
+        if (x - 1 >= 0 && lay[x][y] == lay[x - 1][y]) {
+            used[y][x] = true;
+            arr3 = this.findSame(lay, used, x - 1, y).concat([[y, x]]);
+        }
+        //向左相同的
+        if (y - 1 >= 0 && lay[x][y] == lay[x][y - 1]) {
+            used[y][x] = true;
+            arr4 = this.findSame(lay, used, x, y - 1).concat([[y, x]]);
+        }
+        if (arr1.length || arr2.length || arr3.length || arr4.length) {
+            return arr1.concat(arr2).concat(arr3).concat(arr4);
+        }
+        else {
+            used[y][x] = true;
+            return [[y, x]];
+        }
+    }
+    resetLayout() {
+        this.layout = JSON.parse(JSON.stringify(this.originalLayout));
+        this.refresh();
     }
 }
 

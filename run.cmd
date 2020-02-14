@@ -4,5 +4,5 @@ IF "%1"=="" (
 ) ELSE (
 	SET port=%1
 )
-http-server .\ToS -p %port%
+http-server .\TOS -p %port%
 @echo on

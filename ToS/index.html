@@ -4,6 +4,7 @@
   <head>
     <title>Canvas tutorial</title>
     <style type="text/css">
+      svg { border: 1px solid black; }
       canvas { border: 1px solid black; }
     </style>
     <!-- 存檔時刷新頁面 -->
@@ -13,12 +14,34 @@
       src="https://code.jquery.com/jquery-3.4.1.js"
       integrity="sha256-WpOohJOqMqqyKL9FccASB9O0KwACQJpFTUBLTYOVvVU="
       crossorigin="anonymous"></script>
+    <!-- svg.js -->
+    <script src="https://cdn.jsdelivr.net/npm/@svgdotjs/svg.js@3.0/dist/svg.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@svgdotjs/svg.draggable.js@3.0.2/dist/svg.draggable.min.js"></script>
     <!-- 主要script -->
     <!-- <script src="IMultipleLoading.js"></script> -->
-    <script src="ToSCanvas.js"></script>
+    <script src="TOSSvg.js"></script>
+    <script src="TOSCanvas.js"></script>
     <script src="myScript.js"></script>
   </head>
   <body>
+    <svg id="mySvg" width="360" height="300" xmlns="http://www.w3.org/2000/svg">
+      <!-- 定義4x4格子的圖案 -->
+      <defs>
+        <pattern id="grid" width="120" height="120" patternUnits="userSpaceOnUse">
+          <image href="./pic/bg1.png" x="0" y="0" height="60" width="60"/>
+          <image href="./pic/bg2.png" x="60" y="0" height="60" width="60"/>
+          <image href="./pic/bg2.png" x="0" y="60" height="60" width="60"/>
+          <image href="./pic/bg1.png" x="60" y="60" height="60" width="60"/>
+        </pattern>
+      </defs>\
+      <!-- 用4x4格子填滿 -->
+      <rect width="100%" height="100%" fill="url(#grid)" />
+    </svg>
+    <div id='tmp1'></div>
+    <div id='tmp2'></div>
+    <hr align="left" width="360"/>
     <canvas id="myCanvas" width="360" height="300"></canvas>
+    <button id="btn1">click me</button>
+    <button id="btn2">reset</button>
   </body>
 </html>
